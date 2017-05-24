@@ -307,7 +307,127 @@ class RenderWebGL extends EventEmitter {
         gl.clearColor.apply(gl, this._backgroundColor);
         gl.clear(gl.COLOR_BUFFER_BIT);
 
-        this._drawThese(this._drawList, ShaderManager.DRAW_MODE.default, this._projection);
+        // this._drawThese(this._drawList, ShaderManager.DRAW_MODE.default, this._projection);
+        
+        twgl.setDefaults({attribPrefix: "a_"});
+        
+        const vs = "uniform mat4 u_worldViewProjection;"
+        + "\nuniform vec3 u_lightWorldPos;"
+        + "\nuniform mat4 u_world;"
+        + "\nuniform mat4 u_viewInverse;"
+        + "\nuniform mat4 u_worldInverseTranspose;"
+        + "\n"
+        + "\nattribute vec4 a_position;"
+        + "\nattribute vec3 a_normal;"
+        + "\nattribute vec2 a_texcoord;"
+        + "\n"
+        + "\nvarying vec4 v_position;"
+        + "\nvarying vec2 v_texCoord;"
+        + "\nvarying vec3 v_normal;"
+        + "\nvarying vec3 v_surfaceToLight;"
+        + "\nvarying vec3 v_surfaceToView;"
+        + "\n"
+        + "\nvoid main() {"
+        + "\n  v_texCoord = a_texcoord;"
+        + "\n  v_position = (u_worldViewProjection * a_position);"
+        + "\n  v_normal = (u_worldInverseTranspose * vec4(a_normal, 0)).xyz;"
+        + "\n  v_surfaceToLight = u_lightWorldPos - (u_world * a_position).xyz;"
+        + "\n  v_surfaceToView = (u_viewInverse[3] - (u_world * a_position)).xyz;"
+        + "\n  gl_Position = v_position;"
+        + "\n}";
+        const fs = "precision mediump float;"
+        + "\n"
+        + "\nvarying vec4 v_position;"
+        + "\nvarying vec2 v_texCoord;"
+        + "\nvarying vec3 v_normal;"
+        + "\nvarying vec3 v_surfaceToLight;"
+        + "\nvarying vec3 v_surfaceToView;"
+        + "\n"
+        + "\nuniform vec4 u_lightColor;"
+        + "\nuniform vec4 u_ambient;"
+        + "\nuniform sampler2D u_diffuse;"
+        + "\nuniform vec4 u_specular;"
+        + "\nuniform float u_shininess;"
+        + "\nuniform float u_specularFactor;"
+        + "\n"
+        + "\nvec4 lit(float l ,float h, float m) {"
+        + "\n  return vec4(1.0,"
+        + "\n              max(l, 0.0),"
+        + "\n              (l > 0.0) ? pow(max(0.0, h), m) : 0.0,"
+        + "\n              1.0);"
+        + "\n}"
+        + "\n"
+        + "\nvoid main() {"
+        + "\n  vec4 diffuseColor = texture2D(u_diffuse, v_texCoord);"
+        + "\n  vec3 a_normal = normalize(v_normal);"
+        + "\n  vec3 surfaceToLight = normalize(v_surfaceToLight);"
+        + "\n  vec3 surfaceToView = normalize(v_surfaceToView);"
+        + "\n  vec3 halfVector = normalize(surfaceToLight + surfaceToView);"
+        + "\n  vec4 litR = lit(dot(a_normal, surfaceToLight),"
+        + "\n                    dot(a_normal, halfVector), u_shininess);"
+        + "\n  vec4 outColor = vec4(("
+        + "\n  u_lightColor * (diffuseColor * litR.y + diffuseColor * u_ambient +"
+        + "\n                u_specular * litR.z * u_specularFactor)).rgb,"
+        + "\n      diffuseColor.a);"
+        + "\n  gl_FragColor = outColor;"
+        + "\n}";
+        
+        var m4 = twgl.m4;
+        var programInfo = twgl.createProgramInfo(gl, [vs, fs]);
+        
+        var arrays = {
+            position: [1, 1, -1, 1, 1, 1, 1, -1, 1, 1, -1, -1, -1, 1, 1, -1, 1, -1, -1, -1, -1, -1, -1, 1, -1, 1, 1, 1, 1, 1, 1, 1, -1, -1, 1, -1, -1, -1, -1, 1, -1, -1, 1, -1, 1, -1, -1, 1, 1, 1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1, -1, 1, -1, 1, 1, -1, 1, -1, -1, -1, -1, -1],
+            normal:   [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1],
+            texcoord: [1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
+            indices:  [0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11, 12, 13, 14, 12, 14, 15, 16, 17, 18, 16, 18, 19, 20, 21, 22, 20, 22, 23],
+        };
+        var bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
+    
+        var tex = twgl.createTexture(gl, {
+            min: gl.NEAREST,
+            mag: gl.NEAREST,
+            src: [
+                255, 255, 255, 255,
+                192, 192, 192, 255,
+                192, 192, 192, 255,
+                255, 255, 255, 255,
+            ],
+        });
+    
+        var uniforms = {
+            u_lightWorldPos: [1, 8, -10],
+            u_lightColor: [1, 0.8, 0.8, 1],
+            u_ambient: [0, 0, 0, 1],
+            u_specular: [1, 1, 1, 1],
+            u_shininess: 50,
+            u_specularFactor: 1,
+            u_diffuse: tex,
+        };
+        
+        gl.enable(gl.DEPTH_TEST);
+        gl.enable(gl.CULL_FACE);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        
+        var projection = m4.perspective(30 * Math.PI / 180, gl.canvas.clientWidth / gl.canvas.clientHeight, 0.5, 10);
+        var eye = [1, 4, -6];
+        var target = [0, 0, 0];
+        var up = [0, 1, 0];
+        
+        var camera = m4.lookAt(eye, target, up);
+        var view = m4.inverse(camera);
+        var viewProjection = m4.multiply(projection, view);
+        var world = m4.rotationY(Date.now()/1000);
+        
+        uniforms.u_viewInverse = camera;
+        uniforms.u_world = world;
+        uniforms.u_worldInverseTranspose = m4.transpose(m4.inverse(world));
+        uniforms.u_worldViewProjection = m4.multiply(viewProjection, world);
+        
+        gl.useProgram(programInfo.program);
+        twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
+        twgl.setUniforms(programInfo, uniforms);
+        gl.drawElements(gl.TRIANGLES, bufferInfo.numElements, gl.UNSIGNED_SHORT, 0);
+
     }
 
     /**
