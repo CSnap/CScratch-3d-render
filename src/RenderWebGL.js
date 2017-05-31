@@ -1,7 +1,8 @@
 const EventEmitter = require('events');
 
 const hull = require('hull.js');
-const twgl = require('twgl.js');
+// const twgl = require('twgl.js');
+const three = require('three');
 
 const BitmapSkin = require('./BitmapSkin');
 const Drawable = require('./Drawable');
@@ -9,6 +10,7 @@ const PenSkin = require('./PenSkin');
 const RenderConstants = require('./RenderConstants');
 const ShaderManager = require('./ShaderManager');
 const SVGSkin = require('./SVGSkin');
+const ThreeDSkin = require('./ThreeDSkin');
 
 /**
  * @callback RenderWebGL#idFilterFunc
@@ -70,9 +72,12 @@ class RenderWebGL extends EventEmitter {
 
         /** @type {Array<int>} */
         this._drawList = [];
-
-        /** @type {WebGLRenderingContext} */
-        const gl = this._gl = twgl.getWebGLContext(canvas, {alpha: false, stencil: true});
+        
+        this._scene = new three.Scene();
+        
+        const gl = this._gl = new three.WebGLRenderer({"canvas": canvas});
+        
+        //const gl = this._gl = twgl.getWebGLContext(canvas, {alpha: false, stencil: true});
 
         /** @type {int} */
         this._nextDrawableId = RenderConstants.ID_NONE + 1;
@@ -81,10 +86,10 @@ class RenderWebGL extends EventEmitter {
         this._nextSkinId = RenderConstants.ID_NONE + 1;
 
         /** @type {module:twgl/m4.Mat4} */
-        this._projection = twgl.m4.identity();
+        this._projection = new three.Matrix4();
 
         /** @type {ShaderManager} */
-        this._shaderManager = new ShaderManager(gl);
+        //this._shaderManager = new ShaderManager(gl);
 
         /** @type {HTMLCanvasElement} */
         this._tempCanvas = document.createElement('canvas');
@@ -96,11 +101,17 @@ class RenderWebGL extends EventEmitter {
         this.setBackgroundColor(1, 1, 1);
         this.setStageSize(xLeft || -240, xRight || 240, yBottom || -180, yTop || 180);
         this.resize(this._nativeSize[0], this._nativeSize[1]);
-
-        gl.disable(gl.DEPTH_TEST);
-        /** @todo disable when no partial transparency? */
-        gl.enable(gl.BLEND);
-        gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+        
+        this._camera = new three.PerspectiveCamera( 75, canvas.width / canvas.height, 0.1, 1000 );
+        
+        var light = new three.PointLight( 0xffffff, 1, 0 );
+        light.position.set(0, 2, 0)
+        this._scene.add(light);
+        
+        // gl.disable(gl.DEPTH_TEST);
+        // /** @todo disable when no partial transparency? */
+        // gl.enable(gl.BLEND);
+        // gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
     }
 
     /**
@@ -118,8 +129,8 @@ class RenderWebGL extends EventEmitter {
      */
     resize (pixelsWide, pixelsTall) {
         const pixelRatio = window.devicePixelRatio || 1;
-        this._gl.canvas.width = pixelsWide * pixelRatio;
-        this._gl.canvas.height = pixelsTall * pixelRatio;
+        this._gl.domElement.width = pixelsWide * pixelRatio;
+        this._gl.domElement.height = pixelsTall * pixelRatio;
     }
 
     /**
@@ -130,7 +141,8 @@ class RenderWebGL extends EventEmitter {
      * @param {number} blue The blue component for the background.
      */
     setBackgroundColor (red, green, blue) {
-        this._backgroundColor = [red, green, blue, 1];
+        if (!this._scene.background) this._scene.background = new three.Color();
+        this._scene.background.setRGB(red, green, blue);
     }
 
     /**
@@ -156,7 +168,8 @@ class RenderWebGL extends EventEmitter {
         this._yTop = yTop;
 
         // swap yBottom & yTop to fit Scratch convention of +y=up
-        this._projection = twgl.m4.ortho(xLeft, xRight, yBottom, yTop, -1, 1);
+        this._projection = new three.Matrix4().makeOrthographic(xLeft, xRight, yBottom, yTop, -1, 1);
+        this._gl.setSize(Math.abs(xRight - xLeft), Math.abs(yBottom - yTop));
 
         this._setNativeSize(Math.abs(xRight - xLeft), Math.abs(yBottom - yTop));
     }
@@ -210,6 +223,15 @@ class RenderWebGL extends EventEmitter {
         this._allSkins[skinId] = newSkin;
         return skinId;
     }
+    
+    create3DSkin (geometry, material) {
+        const skinId = this._nextSkinId++;
+        const newSkin = new ThreeDSkin(skinId, this);
+        newSkin.setGeometry(new three.BoxGeometry(1, 1, 1));
+        newSkin.setMaterial(new three.MeshLambertMaterial({color: 0x00ff00 }));
+        this._allSkins[skinId] = newSkin;
+        return skinId;
+    }
 
     /**
      * Create a new PenSkin - a skin which implements a Scratch pen layer.
@@ -243,6 +265,8 @@ class RenderWebGL extends EventEmitter {
         this._drawList.push(drawableID);
 
         drawable.skin = null;
+        
+        this._scene.add(drawable._mesh);
 
         return drawableID;
     }
@@ -301,133 +325,10 @@ class RenderWebGL extends EventEmitter {
      */
     draw () {
         const gl = this._gl;
+        
+        gl.setViewport(0, 0, gl.domElement.width, gl.domElement.height);
 
-        twgl.bindFramebufferInfo(gl, null);
-        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-        gl.clearColor.apply(gl, this._backgroundColor);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-
-        // this._drawThese(this._drawList, ShaderManager.DRAW_MODE.default, this._projection);
-        
-        twgl.setDefaults({attribPrefix: "a_"});
-        
-        const vs = "uniform mat4 u_worldViewProjection;"
-        + "\nuniform vec3 u_lightWorldPos;"
-        + "\nuniform mat4 u_world;"
-        + "\nuniform mat4 u_viewInverse;"
-        + "\nuniform mat4 u_worldInverseTranspose;"
-        + "\n"
-        + "\nattribute vec4 a_position;"
-        + "\nattribute vec3 a_normal;"
-        + "\nattribute vec2 a_texcoord;"
-        + "\n"
-        + "\nvarying vec4 v_position;"
-        + "\nvarying vec2 v_texCoord;"
-        + "\nvarying vec3 v_normal;"
-        + "\nvarying vec3 v_surfaceToLight;"
-        + "\nvarying vec3 v_surfaceToView;"
-        + "\n"
-        + "\nvoid main() {"
-        + "\n  v_texCoord = a_texcoord;"
-        + "\n  v_position = (u_worldViewProjection * a_position);"
-        + "\n  v_normal = (u_worldInverseTranspose * vec4(a_normal, 0)).xyz;"
-        + "\n  v_surfaceToLight = u_lightWorldPos - (u_world * a_position).xyz;"
-        + "\n  v_surfaceToView = (u_viewInverse[3] - (u_world * a_position)).xyz;"
-        + "\n  gl_Position = v_position;"
-        + "\n}";
-        const fs = "precision mediump float;"
-        + "\n"
-        + "\nvarying vec4 v_position;"
-        + "\nvarying vec2 v_texCoord;"
-        + "\nvarying vec3 v_normal;"
-        + "\nvarying vec3 v_surfaceToLight;"
-        + "\nvarying vec3 v_surfaceToView;"
-        + "\n"
-        + "\nuniform vec4 u_lightColor;"
-        + "\nuniform vec4 u_ambient;"
-        + "\nuniform sampler2D u_diffuse;"
-        + "\nuniform vec4 u_specular;"
-        + "\nuniform float u_shininess;"
-        + "\nuniform float u_specularFactor;"
-        + "\n"
-        + "\nvec4 lit(float l ,float h, float m) {"
-        + "\n  return vec4(1.0,"
-        + "\n              max(l, 0.0),"
-        + "\n              (l > 0.0) ? pow(max(0.0, h), m) : 0.0,"
-        + "\n              1.0);"
-        + "\n}"
-        + "\n"
-        + "\nvoid main() {"
-        + "\n  vec4 diffuseColor = texture2D(u_diffuse, v_texCoord);"
-        + "\n  vec3 a_normal = normalize(v_normal);"
-        + "\n  vec3 surfaceToLight = normalize(v_surfaceToLight);"
-        + "\n  vec3 surfaceToView = normalize(v_surfaceToView);"
-        + "\n  vec3 halfVector = normalize(surfaceToLight + surfaceToView);"
-        + "\n  vec4 litR = lit(dot(a_normal, surfaceToLight),"
-        + "\n                    dot(a_normal, halfVector), u_shininess);"
-        + "\n  vec4 outColor = vec4(("
-        + "\n  u_lightColor * (diffuseColor * litR.y + diffuseColor * u_ambient +"
-        + "\n                u_specular * litR.z * u_specularFactor)).rgb,"
-        + "\n      diffuseColor.a);"
-        + "\n  gl_FragColor = outColor;"
-        + "\n}";
-        
-        var m4 = twgl.m4;
-        var programInfo = twgl.createProgramInfo(gl, [vs, fs]);
-        
-        var arrays = {
-            position: [1, 1, -1, 1, 1, 1, 1, -1, 1, 1, -1, -1, -1, 1, 1, -1, 1, -1, -1, -1, -1, -1, -1, 1, -1, 1, 1, 1, 1, 1, 1, 1, -1, -1, 1, -1, -1, -1, -1, 1, -1, -1, 1, -1, 1, -1, -1, 1, 1, 1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1, -1, 1, -1, 1, 1, -1, 1, -1, -1, -1, -1, -1],
-            normal:   [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1],
-            texcoord: [1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
-            indices:  [0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11, 12, 13, 14, 12, 14, 15, 16, 17, 18, 16, 18, 19, 20, 21, 22, 20, 22, 23],
-        };
-        var bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
-    
-        var tex = twgl.createTexture(gl, {
-            min: gl.NEAREST,
-            mag: gl.NEAREST,
-            src: [
-                255, 255, 255, 255,
-                192, 192, 192, 255,
-                192, 192, 192, 255,
-                255, 255, 255, 255,
-            ],
-        });
-    
-        var uniforms = {
-            u_lightWorldPos: [1, 8, -10],
-            u_lightColor: [1, 0.8, 0.8, 1],
-            u_ambient: [0, 0, 0, 1],
-            u_specular: [1, 1, 1, 1],
-            u_shininess: 50,
-            u_specularFactor: 1,
-            u_diffuse: tex,
-        };
-        
-        gl.enable(gl.DEPTH_TEST);
-        gl.enable(gl.CULL_FACE);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        
-        var projection = m4.perspective(30 * Math.PI / 180, gl.canvas.clientWidth / gl.canvas.clientHeight, 0.5, 10);
-        var eye = [1, 4, -6];
-        var target = [0, 0, 0];
-        var up = [0, 1, 0];
-        
-        var camera = m4.lookAt(eye, target, up);
-        var view = m4.inverse(camera);
-        var viewProjection = m4.multiply(projection, view);
-        var world = m4.rotationY(Date.now()/1000);
-        
-        uniforms.u_viewInverse = camera;
-        uniforms.u_world = world;
-        uniforms.u_worldInverseTranspose = m4.transpose(m4.inverse(world));
-        uniforms.u_worldViewProjection = m4.multiply(viewProjection, world);
-        
-        gl.useProgram(programInfo.program);
-        twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
-        twgl.setUniforms(programInfo, uniforms);
-        gl.drawElements(gl.TRIANGLES, bufferInfo.numElements, gl.UNSIGNED_SHORT, 0);
-
+        this._drawThese(this._drawList, ShaderManager.DRAW_MODE.default, this._projection);
     }
 
     /**
@@ -446,10 +347,10 @@ class RenderWebGL extends EventEmitter {
         // In debug mode, draw the bounds.
         if (this._debugCanvas) {
             const gl = this._gl;
-            this._debugCanvas.width = gl.canvas.width;
-            this._debugCanvas.height = gl.canvas.height;
+            this._debugCanvas.width = gl.domElement.width;
+            this._debugCanvas.height = gl.domElement.height;
             const context = this._debugCanvas.getContext('2d');
-            context.drawImage(gl.canvas, 0, 0);
+            context.drawImage(gl.domElement, 0, 0);
             context.strokeStyle = '#FF0000';
             const pr = window.devicePixelRatio;
             context.strokeRect(
@@ -481,7 +382,7 @@ class RenderWebGL extends EventEmitter {
      */
     isTouchingColor (drawableID, color3b, mask3b) {
         const gl = this._gl;
-        twgl.bindFramebufferInfo(gl, this._queryBufferInfo);
+        /*twgl.bindFramebufferInfo(gl, this._queryBufferInfo);
 
         const bounds = this._touchingBounds(drawableID);
         if (!bounds) {
@@ -555,7 +456,7 @@ class RenderWebGL extends EventEmitter {
                 pixelDistanceB <= TOLERANCE_TOUCHING_COLOR) {
                 return true;
             }
-        }
+        }*/
 
         return false;
     }
@@ -571,6 +472,7 @@ class RenderWebGL extends EventEmitter {
 
         const gl = this._gl;
 
+        /*
         twgl.bindFramebufferInfo(gl, this._queryBufferInfo);
 
         const bounds = this._touchingBounds(drawableID);
@@ -631,7 +533,7 @@ class RenderWebGL extends EventEmitter {
                 return true;
             }
         }
-
+        */
         return false;
     }
 
@@ -648,10 +550,10 @@ class RenderWebGL extends EventEmitter {
     pick (centerX, centerY, touchWidth, touchHeight, candidateIDs) {
         const gl = this._gl;
 
+        /*
         touchWidth = touchWidth || 1;
         touchHeight = touchHeight || 1;
         candidateIDs = candidateIDs || this._drawList;
-
         const clientToGLX = gl.canvas.width / gl.canvas.clientWidth;
         const clientToGLY = gl.canvas.height / gl.canvas.clientHeight;
 
@@ -717,8 +619,9 @@ class RenderWebGL extends EventEmitter {
                 hit = hitID;
             }
         }
-
         return hit | 0;
+        */
+        return 0;
     }
 
     /**
@@ -740,9 +643,10 @@ class RenderWebGL extends EventEmitter {
      * @return {?DrawableExtraction} Data about the picked drawable
      */
     extractDrawable (drawableID, x, y) {
+        /*
         const drawable = this._allDrawables[drawableID];
         if (!drawable) return null;
-
+        
         const gl = this._gl;
         twgl.bindFramebufferInfo(gl, this._queryBufferInfo);
 
@@ -798,6 +702,8 @@ class RenderWebGL extends EventEmitter {
             x: pickX,
             y: pickY
         };
+        */
+        return null;
     }
 
     /**
@@ -806,6 +712,7 @@ class RenderWebGL extends EventEmitter {
      * @return {?Rectangle} Rectangle bounds for touching query, or null.
      */
     _touchingBounds (drawableID) {
+        
         const drawable = this._allDrawables[drawableID];
 
         /** @todo remove this once URL-based skin setting is removed. */
@@ -956,6 +863,7 @@ class RenderWebGL extends EventEmitter {
      * @param {int} stampID - the unique ID of the Drawable to use as the stamp.
      */
     penStamp (penSkinID, stampID) {
+        /*
         const stampDrawable = this._allDrawables[stampID];
         if (!stampDrawable) {
             return;
@@ -965,9 +873,9 @@ class RenderWebGL extends EventEmitter {
         if (!bounds) {
             return;
         }
-
+*/
         const skin = /** @type {PenSkin} */ this._allSkins[penSkinID];
-
+/*
         const gl = this._gl;
         twgl.bindFramebufferInfo(gl, this._queryBufferInfo);
 
@@ -998,6 +906,7 @@ class RenderWebGL extends EventEmitter {
         stampContext.putImageData(stampImageData, 0, 0);
 
         skin.drawStamp(stampCanvas, bounds.left, bounds.top);
+        */
     }
 
     /* ******
@@ -1033,7 +942,7 @@ class RenderWebGL extends EventEmitter {
                 ]
             }
         };
-        this._bufferInfo = twgl.createBufferInfoFromArrays(this._gl, quad);
+        // this._bufferInfo = twgl.createBufferInfoFromArrays(this._gl, quad);
     }
 
     /**
@@ -1044,6 +953,7 @@ class RenderWebGL extends EventEmitter {
      * @private
      */
     onNativeSizeChanged (event) {
+        /*
         const [width, height] = event.newSize;
 
         const gl = this._gl;
@@ -1055,14 +965,16 @@ class RenderWebGL extends EventEmitter {
         if (!this._pickBufferInfo) {
             this._pickBufferInfo = twgl.createFramebufferInfo(gl, attachments, MAX_TOUCH_SIZE[0], MAX_TOUCH_SIZE[1]);
         }
-
+*/
         /** @todo should we create this on demand to save memory? */
         // A 480x360 32-bpp buffer is 675 KiB.
+        /*
         if (this._queryBufferInfo) {
             twgl.resizeFramebufferInfo(gl, this._queryBufferInfo, attachments, width, height);
         } else {
             this._queryBufferInfo = twgl.createFramebufferInfo(gl, attachments, width, height);
         }
+        */
     }
 
     /**
@@ -1099,7 +1011,7 @@ class RenderWebGL extends EventEmitter {
             // If the skin or texture isn't ready yet, skip it.
             if (!drawable.skin || !drawable.skin.getTexture(drawableScale)) continue;
 
-            let effectBits = drawable.getEnabledEffects();
+            /*let effectBits = drawable.getEnabledEffects();
             effectBits &= opts.hasOwnProperty('effectMask') ? opts.effectMask : effectBits;
             const newShader = this._shaderManager.getShader(drawMode, effectBits);
             if (currentShader !== newShader) {
@@ -1111,15 +1023,18 @@ class RenderWebGL extends EventEmitter {
             }
 
             twgl.setUniforms(currentShader, drawable.skin.getUniforms(drawableScale));
-            twgl.setUniforms(currentShader, drawable.getUniforms());
+            twgl.setUniforms(currentShader, drawable.getUniforms());*/
 
             // Apply extra uniforms after the Drawable's, to allow overwriting.
             if (opts.extraUniforms) {
-                twgl.setUniforms(currentShader, opts.extraUniforms);
+                // twgl.setUniforms(currentShader, opts.extraUniforms);
             }
-
-            twgl.drawBufferInfo(gl, this._bufferInfo, gl.TRIANGLES);
+            
+            //twgl.drawBufferInfo(gl, this._bufferInfo, gl.TRIANGLES);
+            //this._scene.add(drawable._mesh);
         }
+        gl.render(this._scene, this._camera);
+        //this._scene.children = [];
     }
 
     /**

@@ -39,6 +39,7 @@
     "raw-loader": "^0.5.1",
     "scratch-render-fonts": "git+https://github.com/LLK/scratch-render-fonts.git",
     "tap": "^10.3.0",
+    "three": "^0.85.2",
     "travis-after-all": "^1.4.4",
     "twgl.js": "3.3.0",
     "webpack": "^2.2.1",

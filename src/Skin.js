@@ -1,6 +1,7 @@
 const EventEmitter = require('events');
 
-const twgl = require('twgl.js');
+//const twgl = require('twgl.js');
+const three = require('three');
 
 const RenderConstants = require('./RenderConstants');
 
@@ -17,7 +18,8 @@ class Skin extends EventEmitter {
         this._id = id;
 
         /** @type {Vec3} */
-        this._rotationCenter = twgl.v3.create(0, 0);
+        // this._rotationCenter = twgl.v3.create(0, 0);
+        this._rotationCenter = new three.Vector3(0, 0, 0);
 
         /**
          * The uniforms to be used by the vertex and pixel shaders.
@@ -25,19 +27,21 @@ class Skin extends EventEmitter {
          * @type {Object.<string,*>}
          * @private
          */
-        this._uniforms = {
-            /**
-             * The nominal (not necessarily current) size of the current skin.
-             * @type {Array<number>}
-             */
-            u_skinSize: [0, 0],
+        // this._uniforms = {
+        //     /**
+        //      * The nominal (not necessarily current) size of the current skin.
+        //      * @type {Array<number>}
+        //      */
+        //     u_skinSize: [0, 0],
 
-            /**
-             * The actual WebGL texture object for the skin.
-             * @type {WebGLTexture}
-             */
-            u_skin: null
-        };
+        //     /**
+        //      * The actual WebGL texture object for the skin.
+        //      * @type {WebGLTexture}
+        //      */
+        //     u_skin: null
+        // };
+        
+        this._skin = null;
 
         this.setMaxListeners(RenderConstants.SKIN_SHARE_SOFT_LIMIT);
     }
@@ -77,10 +81,10 @@ class Skin extends EventEmitter {
      * @param {number} y - The y coordinate of the new rotation center.
      * @fires Skin.event:WasAltered
      */
-    setRotationCenter (x, y) {
-        if (x !== this._rotationCenter[0] || y !== this._rotationCenter[1]) {
-            this._rotationCenter[0] = x;
-            this._rotationCenter[1] = y;
+    setRotationCenter (x, y, z) {
+        if (x !== this._rotationCenter.x || y !== this._rotationCenter.y ||
+            z !== this._rotationCenter.z) {
+            this._rotationCenter.set(x, y, z);
             this.emit(Skin.Events.WasAltered);
         }
     }
@@ -109,9 +113,10 @@ class Skin extends EventEmitter {
      * @returns {object.<string, *>} the shader uniforms to be used when rendering with this Skin.
      */
     getUniforms (scale) {
-        this._uniforms.u_skin = this.getTexture(scale);
-        this._uniforms.u_skinSize = this.size;
-        return this._uniforms;
+        // this._uniforms.u_skin = this.getTexture(scale);
+        // this._uniforms.u_skinSize = this.size;
+        // return this._uniforms;
+        return null;
     }
 }
 

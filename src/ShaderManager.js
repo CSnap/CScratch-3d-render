@@ -40,7 +40,7 @@ class ShaderManager {
         }
         let shader = cache[effectBits];
         if (!shader) {
-            shader = cache[effectBits] = this._buildShader(drawMode, effectBits);
+            //shader = cache[effectBits] = this._buildShader(drawMode, effectBits);
         }
         return shader;
     }
@@ -53,6 +53,7 @@ class ShaderManager {
      * @private
      */
     _buildShader (drawMode, effectBits) {
+        /*
         const numEffects = ShaderManager.EFFECTS.length;
 
         const defines = [
@@ -69,6 +70,7 @@ class ShaderManager {
         const fsFullText = definesText + fragmentShaderText;
 
         return twgl.createProgramInfo(this._gl, [vsFullText, fsFullText]);
+        */
     }
 }
 
