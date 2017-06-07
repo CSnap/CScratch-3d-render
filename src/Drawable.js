@@ -1,4 +1,4 @@
-//const twgl = require('twgl.js');
+// const twgl = require('twgl.js');
 const three = require('three');
 
 const Rectangle = require('./Rectangle');
@@ -37,8 +37,10 @@ class Drawable {
         //      */
         //     u_silhouetteColor: Drawable.color4fFromID(this._id)
         // };
-        
+
         this._mesh = this._mesh = new three.Mesh();
+        this._mesh.visible = false;
+
         this._skin = null;
 
         // Effect values are uniforms too
@@ -46,12 +48,9 @@ class Drawable {
         for (let index = 0; index < numEffects; ++index) {
             const effectName = ShaderManager.EFFECTS[index];
             const converter = ShaderManager.EFFECT_INFO[effectName].converter;
-            //this._uniforms[`u_${effectName}`] = converter(0);
+            // this._uniforms[`u_${effectName}`] = converter(0);
         }
 
-        this._position = new three.Vector3(0, 0, 0);
-        this._scale = new three.Vector3(1, 1, 1);
-        this._direction = new three.Quaternion();
         this._transformDirty = true;
         this._visible = true;
         this._effectBits = 0;
@@ -105,15 +104,13 @@ class Drawable {
             if (this._skin) {
                 this._skin.addListener(Skin.Events.WasAltered, this._skinWasAltered);
             }
-            
-            if (!this._mesh) {
-                this._mesh = new three.Mesh(this.skin._geometry, this.skin._material);
-            } else {
+
+            if (this.skin._geometry && this.skin._material) {
                 this._mesh.geometry = this.skin._geometry;
                 this._mesh.material = this.skin._material;
+                this._mesh.visible = true;
             }
-            
-            
+
             this._skinWasAltered();
         }
     }
@@ -122,7 +119,7 @@ class Drawable {
      * @returns {Array<number>} the current scaling percentages applied to this Drawable. [100,100] is normal size.
      */
     get scale () {
-        return [this._scale[0], this._scale[1], this._scale[2]];
+        return this._mesh.scale.toArray();
     }
 
     /**
@@ -146,7 +143,7 @@ class Drawable {
      * @returns {boolean} whether this Drawable is visible.
      */
     getVisible () {
-        return this._visible;
+        return this._mesh.visible;
     }
 
     /**
@@ -215,7 +212,7 @@ class Drawable {
 
         // twgl.m4.identity(modelMatrix);
         // twgl.m4.translate(modelMatrix, this._position, modelMatrix);
-        
+
         if (this._mesh) {
             // this._mesh.modelViewMatrix.compose(this._position, this._direction, this._scale);
             // this._mesh.position = this._position;
@@ -225,18 +222,18 @@ class Drawable {
 
         // const rotation = (270 - this._direction) * Math.PI / 180;
         // twgl.m4.rotateZ(modelMatrix, rotation, modelMatrix);
-        
+
         // Adjust rotation center relative to the skin.
         // const rotationAdjusted = twgl.v3.subtract(this.skin.rotationCenter, twgl.v3.divScalar(this.skin.size, 2));
         // rotationAdjusted[1] *= -1; // Y flipped to Scratch coordinate.
         // rotationAdjusted[2] = 0; // Z coordinate is 0.
-        
-        //twgl.m4.translate(modelMatrix, rotationAdjusted, modelMatrix);
+
+        // twgl.m4.translate(modelMatrix, rotationAdjusted, modelMatrix);
 
         // const scaledSize = twgl.v3.divScalar(twgl.v3.multiply(this.skin.size, this._scale), 100);
         // scaledSize[2] = 0; // was NaN because the vectors have only 2 components.
-        //twgl.m4.scale(modelMatrix, scaledSize, modelMatrix);
-        
+        // twgl.m4.scale(modelMatrix, scaledSize, modelMatrix);
+
 
         this._transformDirty = false;
     }

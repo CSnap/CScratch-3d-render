@@ -1,5 +1,3 @@
-const twgl = require('twgl.js');
-
 const Skin = require('./Skin');
 
 class BitmapSkin extends Skin {
@@ -30,7 +28,7 @@ class BitmapSkin extends Skin {
      */
     dispose () {
         if (this._texture) {
-            this._renderer.gl.deleteTexture(this._texture);
+            //this._renderer.gl.deleteTexture(this._texture);
             this._texture = null;
         }
         super.dispose();
@@ -64,8 +62,8 @@ class BitmapSkin extends Skin {
         const gl = this._renderer.gl;
 
         if (this._texture) {
-            gl.bindTexture(gl.TEXTURE_2D, this._texture);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bitmapData);
+            // gl.bindTexture(gl.TEXTURE_2D, this._texture);
+            // gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bitmapData);
         } else {
             const textureOptions = {
                 auto: true,
@@ -76,7 +74,7 @@ class BitmapSkin extends Skin {
                 src: bitmapData
             };
 
-            this._texture = twgl.createTexture(gl, textureOptions);
+            // s._texture = twgl.createTexture(gl, textureOptions);
         }
 
         // Do these last in case any of the above throws an exception

@@ -39,12 +39,13 @@
     var renderer = new RenderWebGL(canvas);
 
     var drawableID = renderer.createDrawable();
-    var skinID = renderer.create3DSkin();
+    var skinID = renderer.create3DSkin(renderer.shapes.CUBE);
     renderer.updateDrawableProperties(drawableID, {
-        position: [0, 0, -5],
+        position: [0, 0, 0],
+        scale: [50, 50, 50],
         skinId: skinID
     });
-    
+
     var fudgeSelect = document.getElementById('fudgeproperty');
     var posX = 0;
     var posY = 0;

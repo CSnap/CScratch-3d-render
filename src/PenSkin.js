@@ -1,5 +1,3 @@
-const twgl = require('twgl.js');
-
 const RenderConstants = require('./RenderConstants');
 const Skin = require('./Skin');
 
@@ -162,7 +160,7 @@ class PenSkin extends Skin {
         this._canvas.height = height;
         this._rotationCenter[0] = width / 2;
         this._rotationCenter[1] = height / 2;
-        this._texture = twgl.createTexture(
+        /*this._texture = twgl.createTexture(
             gl,
             {
                 auto: true,
@@ -171,7 +169,7 @@ class PenSkin extends Skin {
                 wrap: gl.CLAMP_TO_EDGE,
                 src: this._canvas
             }
-        );
+        );*/
         this._canvasDirty = true;
     }
 

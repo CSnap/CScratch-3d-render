@@ -1,5 +1,3 @@
-const twgl = require('twgl.js');
-
 const Skin = require('./Skin');
 const SvgRenderer = require('./svg-quirks-mode/svg-renderer');
 
@@ -29,7 +27,7 @@ class SVGSkin extends Skin {
      */
     dispose () {
         if (this._texture) {
-            this._renderer.gl.deleteTexture(this._texture);
+            // this._renderer.gl.deleteTexture(this._texture);
             this._texture = null;
         }
         super.dispose();
@@ -73,8 +71,8 @@ class SVGSkin extends Skin {
         this._svgRenderer.fromString(svgData, () => {
             const gl = this._renderer.gl;
             if (this._texture) {
-                gl.bindTexture(gl.TEXTURE_2D, this._texture);
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this._svgRenderer.canvas);
+                // gl.bindTexture(gl.TEXTURE_2D, this._texture);
+                // gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this._svgRenderer.canvas);
             } else {
                 const textureOptions = {
                     auto: true,
@@ -84,7 +82,7 @@ class SVGSkin extends Skin {
                     src: this._svgRenderer.canvas
                 };
 
-                this._texture = twgl.createTexture(gl, textureOptions);
+                // this._texture = twgl.createTexture(gl, textureOptions);
             }
             if (typeof rotationCenter === 'undefined') rotationCenter = this.calculateRotationCenter();
             this.setRotationCenter.apply(this, rotationCenter);

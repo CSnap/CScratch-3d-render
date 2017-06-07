@@ -17,18 +17,23 @@ class ThreeDSkin extends Skin {
         this._renderer = renderer;
 
         this._mesh = null;
+
         this._material = null;
         this._geometry = null;
     }
-    
+
     setGeometry(newGeometry) {
         this._geometry = newGeometry;
     }
-    
+
     setMaterial(newMaterial) {
         this._material = newMaterial;
     }
-    
+
+    setColor(newColor) {
+        this._material.color.setHex(newColor);
+    }
+
     getTexture() {
         return this._material;
     }

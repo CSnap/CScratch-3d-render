@@ -72,12 +72,12 @@ class RenderWebGL extends EventEmitter {
 
         /** @type {Array<int>} */
         this._drawList = [];
-        
+
         this._scene = new three.Scene();
-        
-        const gl = this._gl = new three.WebGLRenderer({"canvas": canvas});
-        
-        //const gl = this._gl = twgl.getWebGLContext(canvas, {alpha: false, stencil: true});
+
+        const gl = this._gl = new three.WebGLRenderer({canvas: canvas});
+
+        // const gl = this._gl = twgl.getWebGLContext(canvas, {alpha: false, stencil: true});
 
         /** @type {int} */
         this._nextDrawableId = RenderConstants.ID_NONE + 1;
@@ -89,25 +89,43 @@ class RenderWebGL extends EventEmitter {
         this._projection = new three.Matrix4();
 
         /** @type {ShaderManager} */
-        //this._shaderManager = new ShaderManager(gl);
+        // this._shaderManager = new ShaderManager(gl);
 
         /** @type {HTMLCanvasElement} */
         this._tempCanvas = document.createElement('canvas');
 
         this._createGeometry();
 
+        const shapes = this.shapes = Object.freeze({SPHERE: 0, CUBE: 1, CYLINDER: 2});
+
         this.on(RenderConstants.Events.NativeSizeChanged, this.onNativeSizeChanged);
 
         this.setBackgroundColor(1, 1, 1);
         this.setStageSize(xLeft || -240, xRight || 240, yBottom || -180, yTop || 180);
         this.resize(this._nativeSize[0], this._nativeSize[1]);
-        
-        this._camera = new three.PerspectiveCamera( 75, canvas.width / canvas.height, 0.1, 1000 );
-        
-        var light = new three.PointLight( 0xffffff, 1, 0 );
-        light.position.set(0, 2, 0)
-        this._scene.add(light);
-        
+
+        this._camera = new three.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000);
+        this._camera.position.set(
+            (this._xLeft + this._xRight) / 2,
+            (this._yBottom + this._yTop) / 2,
+            this.getNativeSize()[1] / 2 / Math.tan(this._camera.fov * Math.PI / 180 / 2)
+        );
+
+        const lights = this._lights = [
+            new three.DirectionalLight(),   // Light from above
+            new three.AmbientLight(),       // Baseline light everywhere
+            new three.PointLight()          // Light at the camera position
+        ];
+
+        const intensities = [.5, .4, .3];
+
+        lights.forEach(function (light, i) {
+            light.intensity = intensities[i];
+            this._scene.add(light);
+        }, this);
+
+        lights[2].position.copy(this._camera.position);
+
         // gl.disable(gl.DEPTH_TEST);
         // /** @todo disable when no partial transparency? */
         // gl.enable(gl.BLEND);
@@ -223,12 +241,22 @@ class RenderWebGL extends EventEmitter {
         this._allSkins[skinId] = newSkin;
         return skinId;
     }
-    
-    create3DSkin (geometry, material) {
+
+    create3DSkin (geometry) {
         const skinId = this._nextSkinId++;
         const newSkin = new ThreeDSkin(skinId, this);
-        newSkin.setGeometry(new three.BoxGeometry(1, 1, 1));
-        newSkin.setMaterial(new three.MeshLambertMaterial({color: 0x00ff00 }));
+        newSkin.setGeometry(((geometry, shapes) =>{
+            switch (geometry) {
+            case shapes.SPHERE:
+                return new three.SphereGeometry(1);
+            case shapes.CUBE:
+                return new three.BoxGeometry(1, 1, 1);
+            case shapes.CYLINDER:
+                return new three.CylinderGeometry(1, 1, 1);
+            }
+        })(geometry, this.shapes));
+
+        newSkin.setMaterial(new three.MeshLambertMaterial());
         this._allSkins[skinId] = newSkin;
         return skinId;
     }
@@ -265,7 +293,7 @@ class RenderWebGL extends EventEmitter {
         this._drawList.push(drawableID);
 
         drawable.skin = null;
-        
+
         this._scene.add(drawable._mesh);
 
         return drawableID;
@@ -325,7 +353,7 @@ class RenderWebGL extends EventEmitter {
      */
     draw () {
         const gl = this._gl;
-        
+
         gl.setViewport(0, 0, gl.domElement.width, gl.domElement.height);
 
         this._drawThese(this._drawList, ShaderManager.DRAW_MODE.default, this._projection);
@@ -382,7 +410,7 @@ class RenderWebGL extends EventEmitter {
      */
     isTouchingColor (drawableID, color3b, mask3b) {
         const gl = this._gl;
-        /*twgl.bindFramebufferInfo(gl, this._queryBufferInfo);
+        /* twgl.bindFramebufferInfo(gl, this._queryBufferInfo);
 
         const bounds = this._touchingBounds(drawableID);
         if (!bounds) {
@@ -646,7 +674,7 @@ class RenderWebGL extends EventEmitter {
         /*
         const drawable = this._allDrawables[drawableID];
         if (!drawable) return null;
-        
+
         const gl = this._gl;
         twgl.bindFramebufferInfo(gl, this._queryBufferInfo);
 
@@ -712,7 +740,7 @@ class RenderWebGL extends EventEmitter {
      * @return {?Rectangle} Rectangle bounds for touching query, or null.
      */
     _touchingBounds (drawableID) {
-        
+
         const drawable = this._allDrawables[drawableID];
 
         /** @todo remove this once URL-based skin setting is removed. */
@@ -776,6 +804,9 @@ class RenderWebGL extends EventEmitter {
         }
         if ('skinId' in properties) {
             drawable.skin = this._allSkins[properties.skinId];
+        }
+        if ('color' in properties) {
+            drawable.skin.setColor(properties.color);
         }
         if ('rotationCenter' in properties) {
             const newRotationCenter = properties.rotationCenter;
@@ -991,7 +1022,7 @@ class RenderWebGL extends EventEmitter {
      */
     _drawThese (drawables, drawMode, projection, opts = {}) {
         const gl = this._gl;
-        let currentShader = null;
+        const currentShader = null;
 
         const numDrawables = drawables.length;
         for (let drawableIndex = 0; drawableIndex < numDrawables; ++drawableIndex) {
@@ -1011,7 +1042,7 @@ class RenderWebGL extends EventEmitter {
             // If the skin or texture isn't ready yet, skip it.
             if (!drawable.skin || !drawable.skin.getTexture(drawableScale)) continue;
 
-            /*let effectBits = drawable.getEnabledEffects();
+            /* let effectBits = drawable.getEnabledEffects();
             effectBits &= opts.hasOwnProperty('effectMask') ? opts.effectMask : effectBits;
             const newShader = this._shaderManager.getShader(drawMode, effectBits);
             if (currentShader !== newShader) {
@@ -1029,12 +1060,12 @@ class RenderWebGL extends EventEmitter {
             if (opts.extraUniforms) {
                 // twgl.setUniforms(currentShader, opts.extraUniforms);
             }
-            
-            //twgl.drawBufferInfo(gl, this._bufferInfo, gl.TRIANGLES);
-            //this._scene.add(drawable._mesh);
+
+            // twgl.drawBufferInfo(gl, this._bufferInfo, gl.TRIANGLES);
+            // this._scene.add(drawable._mesh);
         }
         gl.render(this._scene, this._camera);
-        //this._scene.children = [];
+        // this._scene.children = [];
     }
 
     /**

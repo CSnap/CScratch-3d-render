@@ -1,5 +1,3 @@
-const twgl = require('twgl.js');
-
 const vertexShaderText = require('raw-loader!./shaders/sprite.vert');
 const fragmentShaderText = require('raw-loader!./shaders/sprite.frag');
 
