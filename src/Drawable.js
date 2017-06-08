@@ -181,6 +181,9 @@ class Drawable {
             // this.setTransformDirty();
             // this._calculateTransform();
         }
+        if ('color' in properties && this._skin.is3D) {
+            this._skin.setColor(properties.color);
+        }
         /*
         const numEffects = ShaderManager.EFFECTS.length;
         for (let index = 0; index < numEffects; ++index) {

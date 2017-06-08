@@ -20,6 +20,8 @@ class ThreeDSkin extends Skin {
 
         this._material = null;
         this._geometry = null;
+
+        this.is3D = true;
     }
 
     setGeometry(newGeometry) {

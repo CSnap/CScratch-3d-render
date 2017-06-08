@@ -40,8 +40,10 @@ class Skin extends EventEmitter {
         //      */
         //     u_skin: null
         // };
-        
+
         this._skin = null;
+
+        this.is3D = false;
 
         this.setMaxListeners(RenderConstants.SKIN_SHARE_SOFT_LIMIT);
     }

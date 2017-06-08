@@ -1,18 +1,16 @@
 {
-  "name": "scratch-render",
+  "name": "CScratch-3d-render",
   "version": "0.1.0",
-  "description": "WebGL Renderer for Scratch 3.0",
-  "author": "Massachusetts Institute of Technology",
-  "license": "BSD-3-Clause",
-  "homepage": "https://github.com/LLK/scratch-render#readme",
+  "homepage": "https://github.com/CSnap/CScratch-3d-render",
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/LLK/scratch-render.git"
+    "url": "git+ssh://git@github.com/CSnap/CScratch-3d-render.git"
   },
   "main": "./dist/node/scratch-render.js",
   "scripts": {
     "build": "webpack --progress --colors",
     "docs": "jsdoc -c .jsdoc.json",
+    "deploy": "gh-pages -d playground -m \"Build for $(git log --pretty=format:%H -n1)\"",
     "lint": "eslint .",
     "prepublish": "npm run build",
     "prepublish-watch": "npm run watch",
