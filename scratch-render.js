@@ -1427,6 +1427,8 @@ var Skin = function (_EventEmitter) {
 
     _this._skin = null;
 
+    _this.is3D = false;
+
     _this.setMaxListeners(RenderConstants.SKIN_SHARE_SOFT_LIMIT);
     return _this;
   }
@@ -47979,7 +47981,7 @@ var Drawable = function () {
         //     u_silhouetteColor: Drawable.color4fFromID(this._id)
         // };
 
-        this._mesh = this._mesh = new three.Mesh();
+        this._mesh = new three.Mesh();
         this._mesh.visible = false;
 
         this._skin = null;
@@ -48089,10 +48091,14 @@ var Drawable = function () {
                 this._mesh.visible = properties.visible;
                 this.setConvexHullDirty();
             }
-            if (dirty) {}
-            // this.setTransformDirty();
-            // this._calculateTransform();
-
+            if (dirty) {
+                // this.setTransformDirty();
+                // this._calculateTransform();
+            }
+            if ('color' in properties && this._skin.is3D) {
+                debugger;
+                this._skin.setColor(properties.color);
+            }
             /*
             const numEffects = ShaderManager.EFFECTS.length;
             for (let index = 0; index < numEffects; ++index) {
@@ -48896,8 +48902,10 @@ var RenderWebGL = function (_EventEmitter) {
         /** @type {Array<int>} */
         _this._drawList = [];
 
+        /** @type {Scene} */
         _this._scene = new three.Scene();
 
+        /** @type {WebGLRenderer} */
         var gl = _this._gl = new three.WebGLRenderer({ canvas: canvas });
 
         // const gl = this._gl = twgl.getWebGLContext(canvas, {alpha: false, stencil: true});
@@ -48943,6 +48951,8 @@ var RenderWebGL = function (_EventEmitter) {
         }, _this);
 
         lights[2].position.copy(_this._camera.position);
+
+        _this._three = three;
 
         // gl.disable(gl.DEPTH_TEST);
         // /** @todo disable when no partial transparency? */
@@ -49098,8 +49108,8 @@ var RenderWebGL = function (_EventEmitter) {
                         return new three.CylinderGeometry(1, 1, 1);
                 }
             }(geometry, this.shapes));
-
             newSkin.setMaterial(new three.MeshLambertMaterial());
+            newSkin.setColor(0x444444);
             this._allSkins[skinId] = newSkin;
             return skinId;
         }
@@ -49648,9 +49658,6 @@ var RenderWebGL = function (_EventEmitter) {
             if ('skinId' in properties) {
                 drawable.skin = this._allSkins[properties.skinId];
             }
-            if ('color' in properties) {
-                drawable.skin.setColor(properties.color);
-            }
             if ('rotationCenter' in properties) {
                 var newRotationCenter = properties.rotationCenter;
                 drawable.skin.setRotationCenter(newRotationCenter[0], newRotationCenter[1]);
@@ -50193,6 +50200,8 @@ var ThreeDSkin = function (_Skin) {
 
         _this._material = null;
         _this._geometry = null;
+
+        _this.is3D = true;
         return _this;
     }
 

@@ -43,8 +43,26 @@
     renderer.updateDrawableProperties(drawableID, {
         position: [0, 0, 0],
         scale: [50, 50, 50],
-        skinId: skinID
+        skinId: skinID,
+        visible: false,
     });
+
+    var loader = new renderer._three.JSONLoader();
+
+    // load a resource
+    loader.load(
+
+        // resource URL
+        'assets/stork.json',
+
+        // Function when resource is loaded
+        function ( geometry, materials ) {
+            var object = new renderer._three.Mesh( geometry, materials );
+
+            renderer._scene.add( object );
+
+        }
+    );
 
     var fudgeSelect = document.getElementById('fudgeproperty');
     var posX = 0;
