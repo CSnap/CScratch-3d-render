@@ -73,8 +73,10 @@ class RenderWebGL extends EventEmitter {
         /** @type {Array<int>} */
         this._drawList = [];
 
+        /** @type {Scene} */
         this._scene = new three.Scene();
 
+        /** @type {WebGLRenderer} */
         const gl = this._gl = new three.WebGLRenderer({canvas: canvas});
 
         // const gl = this._gl = twgl.getWebGLContext(canvas, {alpha: false, stencil: true});
@@ -94,9 +96,9 @@ class RenderWebGL extends EventEmitter {
         /** @type {HTMLCanvasElement} */
         this._tempCanvas = document.createElement('canvas');
 
-        this._createGeometry();
+        this._objectLoader = new three.JSONLoader();
 
-        const shapes = this.shapes = Object.freeze({SPHERE: 0, CUBE: 1, CYLINDER: 2});
+        this._createGeometry();
 
         this.on(RenderConstants.Events.NativeSizeChanged, this.onNativeSizeChanged);
 
@@ -242,21 +244,20 @@ class RenderWebGL extends EventEmitter {
         return skinId;
     }
 
-    create3DSkin (geometry) {
+    create3DSkin (objectData) {
         const skinId = this._nextSkinId++;
         const newSkin = new ThreeDSkin(skinId, this);
-        newSkin.setGeometry(((geometry, shapes) =>{
-            switch (geometry) {
-            case shapes.SPHERE:
-                return new three.SphereGeometry(1);
-            case shapes.CUBE:
-                return new three.BoxGeometry(1, 1, 1);
-            case shapes.CYLINDER:
-                return new three.CylinderGeometry(1, 1, 1);
-            }
-        })(geometry, this.shapes));
 
-        newSkin.setMaterial(new three.MeshLambertMaterial());
+        if (objectData === undefined) {
+            newSkin.setGeometry(new three.BoxGeometry(10, 10, 10));
+            newSkin.setMaterial(new three.MeshLambertMaterial({color: 0x444444}));
+        } else {
+            let result = this._objectLoader.parse(objectData);
+
+            newSkin.setGeometry(result.geometry);
+            newSkin.setMaterial(result.materials);
+        }
+
         this._allSkins[skinId] = newSkin;
         return skinId;
     }

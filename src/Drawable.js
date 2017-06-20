@@ -38,7 +38,7 @@ class Drawable {
         //     u_silhouetteColor: Drawable.color4fFromID(this._id)
         // };
 
-        this._mesh = this._mesh = new three.Mesh();
+        this._mesh = new three.Mesh();
         this._mesh.visible = false;
 
         this._skin = null;
