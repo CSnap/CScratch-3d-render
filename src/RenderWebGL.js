@@ -253,9 +253,13 @@ class RenderWebGL extends EventEmitter {
             newSkin.setMaterial(new three.MeshLambertMaterial({color: 0x444444}));
         } else {
             let result = this._objectLoader.parse(objectData);
-
             newSkin.setGeometry(result.geometry);
-            newSkin.setMaterial(result.materials);
+
+            if (result.materials) {
+                newSkin.setMaterial(result.materials);
+            } else {
+                newSkin.setMaterial(new three.MeshLambertMaterial({color: 0x444444}));
+            }
         }
 
         this._allSkins[skinId] = newSkin;
@@ -902,9 +906,10 @@ class RenderWebGL extends EventEmitter {
         if (!bounds) {
             return;
         }
-*/
+        */
+
         const skin = /** @type {PenSkin} */ this._allSkins[penSkinID];
-/*
+        /*
         const gl = this._gl;
         twgl.bindFramebufferInfo(gl, this._queryBufferInfo);
 
