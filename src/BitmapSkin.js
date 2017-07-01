@@ -28,7 +28,7 @@ class BitmapSkin extends Skin {
      */
     dispose () {
         if (this._texture) {
-            //this._renderer.gl.deleteTexture(this._texture);
+            // this._renderer.gl.deleteTexture(this._texture);
             this._texture = null;
         }
         super.dispose();
@@ -59,23 +59,23 @@ class BitmapSkin extends Skin {
      * @fires Skin.event:WasAltered
      */
     setBitmap (bitmapData, costumeResolution, rotationCenter) {
-        const gl = this._renderer.gl;
+        /* const gl = this._renderer.gl;
 
         if (this._texture) {
-            // gl.bindTexture(gl.TEXTURE_2D, this._texture);
-            // gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bitmapData);
+            gl.bindTexture(gl.TEXTURE_2D, this._texture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bitmapData);
         } else {
             const textureOptions = {
                 auto: true,
                 mag: gl.NEAREST,
-                /** @todo mipmaps, linear (except pixelate) */
+                /!** @todo mipmaps, linear (except pixelate) *!/
                 min: gl.NEAREST,
                 wrap: gl.CLAMP_TO_EDGE,
                 src: bitmapData
             };
 
-            // s._texture = twgl.createTexture(gl, textureOptions);
-        }
+            s._texture = twgl.createTexture(gl, textureOptions);
+        } */
 
         // Do these last in case any of the above throws an exception
         this._costumeResolution = costumeResolution || 1;

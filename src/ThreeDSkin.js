@@ -16,28 +16,29 @@ class ThreeDSkin extends Skin {
         /** @type {!RenderWebGL} */
         this._renderer = renderer;
 
-        this._mesh = null;
-
-        this._material = null;
-        this._geometry = null;
+        this._mesh = new three.Mesh();
 
         this.is3D = true;
     }
 
-    setGeometry(newGeometry) {
-        this._geometry = newGeometry;
+    get object () {
+        return this._mesh;
     }
 
-    setMaterial(newMaterial) {
-        this._material = newMaterial;
+    setGeometry (newGeometry) {
+        this._mesh.geometry = newGeometry;
     }
 
-    setColor(newColor) {
-        this._material.color.setHex(newColor);
+    setMaterial (newMaterial) {
+        this._mesh.material = newMaterial;
     }
 
-    getTexture() {
-        return this._material;
+    setColor (newColor) {
+        this._mesh.material.color.setHex(newColor);
+    }
+
+    getTexture () {
+        return this._mesh.material;
     }
 }
 

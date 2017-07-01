@@ -1,7 +1,7 @@
 // const twgl = require('twgl.js');
 const three = require('three');
 
-const Rectangle = require('./Rectangle');
+// const Rectangle = require('./Rectangle');
 const RenderConstants = require('./RenderConstants');
 const ShaderManager = require('./ShaderManager');
 const Skin = require('./Skin');
@@ -38,21 +38,20 @@ class Drawable {
         //     u_silhouetteColor: Drawable.color4fFromID(this._id)
         // };
 
-        this._mesh = new three.Mesh();
-        this._mesh.visible = false;
+
+        this._object = new three.Object3D();
 
         this._skin = null;
 
         // Effect values are uniforms too
-        const numEffects = ShaderManager.EFFECTS.length;
+        /* const numEffects = ShaderManager.EFFECTS.length;
         for (let index = 0; index < numEffects; ++index) {
             const effectName = ShaderManager.EFFECTS[index];
             const converter = ShaderManager.EFFECT_INFO[effectName].converter;
-            // this._uniforms[`u_${effectName}`] = converter(0);
-        }
+            this._uniforms[`u_${effectName}`] = converter(0);
+        } */
 
         this._transformDirty = true;
-        this._visible = true;
         this._effectBits = 0;
 
         /** @todo move convex hull functionality, maybe bounds functionality overall, to Skin classes */
@@ -86,6 +85,13 @@ class Drawable {
     }
 
     /**
+     * @returns {three.Object3D|Object3D}
+     */
+    get object () {
+        return this._object;
+    }
+
+    /**
      * @returns {Skin} the current skin for this Drawable.
      */
     get skin () {
@@ -103,12 +109,11 @@ class Drawable {
             this._skin = newSkin;
             if (this._skin) {
                 this._skin.addListener(Skin.Events.WasAltered, this._skinWasAltered);
-            }
 
-            if (this.skin._geometry && this.skin._material) {
-                this._mesh.geometry = this.skin._geometry;
-                this._mesh.material = this.skin._material;
-                this._mesh.visible = true;
+                this._object.children = [];
+                if (this._skin.is3D) {
+                    this._object.add(this._skin.object);
+                }
             }
 
             this._skinWasAltered();
@@ -119,7 +124,7 @@ class Drawable {
      * @returns {Array<number>} the current scaling percentages applied to this Drawable. [100,100] is normal size.
      */
     get scale () {
-        return this._mesh.scale.toArray();
+        return this._object.scale.toArray();
     }
 
     /**
@@ -143,7 +148,7 @@ class Drawable {
      * @returns {boolean} whether this Drawable is visible.
      */
     getVisible () {
-        return this._mesh.visible;
+        return this._object.visible;
     }
 
     /**
@@ -153,28 +158,28 @@ class Drawable {
     updateProperties (properties) {
         let dirty = false;
         if ('position' in properties && (
-            this._mesh.position.x !== properties.position[0] ||
-            this._mesh.position.y !== properties.position[1] ||
-            this._mesh.position.z !== properties.position[2])) {
-            this._mesh.position.fromArray(properties.position);
+            this._object.position.x !== properties.position[0] ||
+            this._object.position.y !== properties.position[1] ||
+            this._object.position.z !== properties.position[2])) {
+            this._object.position.fromArray(properties.position);
             dirty = true;
         }
         if ('rotation' in properties && (
-            this._mesh.rotation.x !== properties.rotation[0] ||
-            this._mesh.rotation.y !== properties.rotation[1] ||
-            this._mesh.rotation.z !== properties.rotation[2])) {
-            this._mesh.rotation.fromArray(properties.rotation);
+            this._object.rotation.x !== properties.rotation[0] ||
+            this._object.rotation.y !== properties.rotation[1] ||
+            this._object.rotation.z !== properties.rotation[2])) {
+            this._object.rotation.fromArray(properties.rotation);
             dirty = true;
         }
         if ('scale' in properties && (
-            this._mesh.scale[0] !== properties.scale[0] ||
-            this._mesh.scale[1] !== properties.scale[1] ||
-            this._mesh.scale[2] !== properties.scale[2])) {
-            this._mesh.scale.fromArray(properties.scale);
+            this._object.scale[0] !== properties.scale[0] ||
+            this._object.scale[1] !== properties.scale[1] ||
+            this._object.scale[2] !== properties.scale[2])) {
+            this._object.scale.fromArray(properties.scale);
             dirty = true;
         }
         if ('visible' in properties) {
-            this._mesh.visible = properties.visible;
+            this._object.visible = properties.visible;
             this.setConvexHullDirty();
         }
         if (dirty) {
@@ -216,11 +221,11 @@ class Drawable {
         // twgl.m4.identity(modelMatrix);
         // twgl.m4.translate(modelMatrix, this._position, modelMatrix);
 
-        if (this._mesh) {
-            // this._mesh.modelViewMatrix.compose(this._position, this._direction, this._scale);
-            // this._mesh.position = this._position;
-            // this._mesh.quaternion = this._direction;
-            // this._mesh.scale = this._scale;
+        if (this._object) {
+            // this._object.modelViewMatrix.compose(this._position, this._direction, this._scale);
+            // this._object.position = this._position;
+            // this._object.quaternion = this._direction;
+            // this._object.scale = this._scale;
         }
 
         // const rotation = (270 - this._direction) * Math.PI / 180;
