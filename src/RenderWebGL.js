@@ -6,7 +6,7 @@ const three = require('three');
 
 const BitmapSkin = require('./BitmapSkin');
 const Drawable = require('./Drawable');
-const PenSkin = require('./PenSkin');
+const ThreeDPenSkin = require('./ThreeDPenSkin');
 const RenderConstants = require('./RenderConstants');
 const ShaderManager = require('./ShaderManager');
 const SVGSkin = require('./SVGSkin');
@@ -272,7 +272,7 @@ class RenderWebGL extends EventEmitter {
      */
     createPenSkin () {
         const skinId = this._nextSkinId++;
-        const newSkin = new PenSkin(skinId, this);
+        const newSkin = new ThreeDPenSkin(skinId, this);
         this._allSkins[skinId] = newSkin;
         return skinId;
     }
@@ -299,7 +299,7 @@ class RenderWebGL extends EventEmitter {
 
         drawable.skin = null;
 
-        this._scene.add(drawable._mesh);
+        this._scene.add(drawable.object);
 
         return drawableID;
     }
@@ -361,7 +361,7 @@ class RenderWebGL extends EventEmitter {
 
         gl.setViewport(0, 0, gl.domElement.width, gl.domElement.height);
 
-        this._drawThese(this._drawList, ShaderManager.DRAW_MODE.default, this._projection);
+        gl.render(this._scene, this._camera);
     }
 
     /**
@@ -581,80 +581,31 @@ class RenderWebGL extends EventEmitter {
      * RenderConstants.ID_NONE if there is no Drawable at that location.
      */
     pick (centerX, centerY, touchWidth, touchHeight, candidateIDs) {
-        const gl = this._gl;
 
-        /*
-        touchWidth = touchWidth || 1;
-        touchHeight = touchHeight || 1;
+        centerX = centerX / this._nativeSize[0] * 2 - 1;
+        centerY = centerY / this._nativeSize[1] * 2 - 1;
+
+        if (centerX > 1 || centerX < -1 || centerY > 1 || centerY < -1) {
+            return RenderConstants.ID_NONE;
+        }
+
+        let raycaster = new three.Raycaster();
+        const mouse = new three.Vector2(centerX, centerY);
+
+        raycaster.setFromCamera(mouse, this._camera);
+
         candidateIDs = candidateIDs || this._drawList;
-        const clientToGLX = gl.canvas.width / gl.canvas.clientWidth;
-        const clientToGLY = gl.canvas.height / gl.canvas.clientHeight;
-
-        centerX *= clientToGLX;
-        centerY *= clientToGLY;
-        touchWidth *= clientToGLX;
-        touchHeight *= clientToGLY;
-
-        touchWidth = Math.max(1, Math.min(touchWidth, MAX_TOUCH_SIZE[0]));
-        touchHeight = Math.max(1, Math.min(touchHeight, MAX_TOUCH_SIZE[1]));
-
-        const pixelLeft = Math.floor(centerX - Math.floor(touchWidth / 2) + 0.5);
-        const pixelRight = Math.floor(centerX + Math.ceil(touchWidth / 2) + 0.5);
-        const pixelTop = Math.floor(centerY - Math.floor(touchHeight / 2) + 0.5);
-        const pixelBottom = Math.floor(centerY + Math.ceil(touchHeight / 2) + 0.5);
-
-        twgl.bindFramebufferInfo(gl, this._pickBufferInfo);
-        gl.viewport(0, 0, touchWidth, touchHeight);
-
-        const noneColor = Drawable.color4fFromID(RenderConstants.ID_NONE);
-        gl.clearColor.apply(gl, noneColor);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-
-        const widthPerPixel = (this._xRight - this._xLeft) / this._gl.canvas.width;
-        const heightPerPixel = (this._yBottom - this._yTop) / this._gl.canvas.height;
-
-        const pickLeft = this._xLeft + (pixelLeft * widthPerPixel);
-        const pickRight = this._xLeft + (pixelRight * widthPerPixel);
-        const pickTop = this._yTop + (pixelTop * heightPerPixel);
-        const pickBottom = this._yTop + (pixelBottom * heightPerPixel);
-
-        const projection = twgl.m4.ortho(pickLeft, pickRight, pickTop, pickBottom, -1, 1);
-
-        this._drawThese(candidateIDs, ShaderManager.DRAW_MODE.silhouette, projection);
-
-        const pixels = new Uint8Array(Math.floor(touchWidth * touchHeight * 4));
-        gl.readPixels(0, 0, touchWidth, touchHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-
-        if (this._debugCanvas) {
-            this._debugCanvas.width = touchWidth;
-            this._debugCanvas.height = touchHeight;
-            const context = this._debugCanvas.getContext('2d');
-            const imageData = context.getImageData(0, 0, touchWidth, touchHeight);
-            imageData.data.set(pixels);
-            context.putImageData(imageData, 0, 0);
-        }
-
-        const hits = {};
-        for (let pixelBase = 0; pixelBase < pixels.length; pixelBase += 4) {
-            const pixelID = Drawable.color3bToID(
-                pixels[pixelBase],
-                pixels[pixelBase + 1],
-                pixels[pixelBase + 2]);
-            hits[pixelID] = (hits[pixelID] || 0) + 1;
-        }
-
-        // Bias toward selecting anything over nothing
-        hits[RenderConstants.ID_NONE] = 0;
-
-        let hit = RenderConstants.ID_NONE;
-        for (const hitID in hits) {
-            if (hits.hasOwnProperty(hitID) && (hits[hitID] > hits[hit])) {
-                hit = hitID;
+        let shortestDistance = -1;
+        let closestDrawableID = RenderConstants.ID_NONE;
+        for (let i = 0; i < candidateIDs.length; ++i) {
+            const intersections = raycaster.intersectObject(this._allDrawables[candidateIDs[i]].object);
+            if (intersections.length && (closestDrawableID == RenderConstants.ID_NONE ||
+                intersections[0].distance < shortestDistance)) {
+                closestDrawableID = candidateIDs[i];
+                shortestDistance = intersections[0].distance;
             }
         }
-        return hit | 0;
-        */
-        return 0;
+        return closestDrawableID;
     }
 
     /**
@@ -868,26 +819,23 @@ class RenderWebGL extends EventEmitter {
      * Draw a point on a pen layer.
      * @param {int} penSkinID - the unique ID of a Pen Skin.
      * @param {PenAttributes} penAttributes - how the point should be drawn.
-     * @param {number} x - the X coordinate of the point to draw.
-     * @param {number} y - the Y coordinate of the point to draw.
+     * @param {Array<number>} position - the XYZ coordinates of the point to draw.
      */
-    penPoint (penSkinID, penAttributes, x, y) {
+    penPoint (penSkinID, penAttributes, position) {
         const skin = /** @type {PenSkin} */ this._allSkins[penSkinID];
-        skin.drawPoint(penAttributes, x, y);
+        skin.drawPoint(penAttributes, position);
     }
 
     /**
      * Draw a line on a pen layer.
      * @param {int} penSkinID - the unique ID of a Pen Skin.
      * @param {PenAttributes} penAttributes - how the line should be drawn.
-     * @param {number} x0 - the X coordinate of the beginning of the line.
-     * @param {number} y0 - the Y coordinate of the beginning of the line.
-     * @param {number} x1 - the X coordinate of the end of the line.
-     * @param {number} y1 - the Y coordinate of the end of the line.
+     * @param {Array<number>} oldPosition - the XYZ coordinates of the beginning of the line.
+     * @param {Array<number>} newPosition - the XYZ coordinates of the end of the line.
      */
-    penLine (penSkinID, penAttributes, x0, y0, x1, y1) {
+    penLine (penSkinID, penAttributes, oldPosition, newPosition) {
         const skin = /** @type {PenSkin} */ this._allSkins[penSkinID];
-        skin.drawLine(penAttributes, x0, y0, x1, y1);
+        skin.drawLine(penAttributes, oldPosition, newPosition);
     }
 
     /**
@@ -896,12 +844,12 @@ class RenderWebGL extends EventEmitter {
      * @param {int} stampID - the unique ID of the Drawable to use as the stamp.
      */
     penStamp (penSkinID, stampID) {
-        /*
         const stampDrawable = this._allDrawables[stampID];
         if (!stampDrawable) {
             return;
         }
 
+        /*
         const bounds = this._touchingBounds(stampID);
         if (!bounds) {
             return;
@@ -909,6 +857,9 @@ class RenderWebGL extends EventEmitter {
         */
 
         const skin = /** @type {PenSkin} */ this._allSkins[penSkinID];
+
+        skin.drawStamp(stampDrawable.object);
+
         /*
         const gl = this._gl;
         twgl.bindFramebufferInfo(gl, this._queryBufferInfo);
@@ -1067,7 +1018,7 @@ class RenderWebGL extends EventEmitter {
             // twgl.drawBufferInfo(gl, this._bufferInfo, gl.TRIANGLES);
             // this._scene.add(drawable._mesh);
         }
-        gl.render(this._scene, this._camera);
+
         // this._scene.children = [];
     }
 
