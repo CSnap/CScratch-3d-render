@@ -849,49 +849,24 @@ class RenderWebGL extends EventEmitter {
             return;
         }
 
-        /*
-        const bounds = this._touchingBounds(stampID);
-        if (!bounds) {
-            return;
-        }
-        */
-
         const skin = /** @type {PenSkin} */ this._allSkins[penSkinID];
 
         skin.drawStamp(stampDrawable.object);
+    }
 
-        /*
-        const gl = this._gl;
-        twgl.bindFramebufferInfo(gl, this._queryBufferInfo);
+    penSphere (penSkinID, penAttributes, radius, position) {
+        const skin = /** @type {PenSkin} */ this._allSkins[penSkinID];
+        skin.drawSphere(penAttributes, radius, position);
+    }
 
-        // Limit size of viewport to the bounds around the stamp Drawable and create the projection matrix for the draw.
-        gl.viewport(0, 0, bounds.width, bounds.height);
-        const projection = twgl.m4.ortho(bounds.left, bounds.right, bounds.top, bounds.bottom, -1, 1);
+    penCube (penSkinID, penAttributes, dimensions, position, rotation) {
+        const skin = /** @type {PenSkin} */ this._allSkins[penSkinID];
+        skin.drawCube(penAttributes, dimensions, position, rotation);
+    }
 
-        gl.clearColor(0, 0, 0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-
-        try {
-            gl.disable(gl.BLEND);
-            this._drawThese([stampID], ShaderManager.DRAW_MODE.default, projection, {isStamping: true});
-        } finally {
-            gl.enable(gl.BLEND);
-        }
-
-        const stampPixels = new Uint8Array(Math.floor(bounds.width * bounds.height * 4));
-        gl.readPixels(0, 0, bounds.width, bounds.height, gl.RGBA, gl.UNSIGNED_BYTE, stampPixels);
-
-        const stampCanvas = this._tempCanvas;
-        stampCanvas.width = bounds.width;
-        stampCanvas.height = bounds.height;
-
-        const stampContext = stampCanvas.getContext('2d');
-        const stampImageData = stampContext.createImageData(bounds.width, bounds.height);
-        stampImageData.data.set(stampPixels);
-        stampContext.putImageData(stampImageData, 0, 0);
-
-        skin.drawStamp(stampCanvas, bounds.left, bounds.top);
-        */
+    penArc (penSkinID, penAttributes, dimensions, position, rotation) {
+        const skin = /** @type {PenSkin} */ this._allSkins[penSkinID];
+        skin.drawArc(penAttributes, dimensions, position, rotation);
     }
 
     /* ******
