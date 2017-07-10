@@ -126,7 +126,8 @@ class RenderWebGL extends EventEmitter {
             this._scene.add(light);
         }, this);
 
-        lights[2].position.copy(this._camera.position);
+        this._cameraLight = lights[2];
+        this._cameraLight.position.copy(this._camera.position);
 
         // gl.disable(gl.DEPTH_TEST);
         // /** @todo disable when no partial transparency? */
@@ -867,6 +868,23 @@ class RenderWebGL extends EventEmitter {
     penArc (penSkinID, penAttributes, dimensions, position, rotation) {
         const skin = /** @type {PenSkin} */ this._allSkins[penSkinID];
         skin.drawArc(penAttributes, dimensions, position, rotation);
+    }
+
+    penCylinder (penSkinID, penAttributes, dimensions, position, rotation) {
+        const skin = /** @type {PenSkin} */ this._allSkins[penSkinID];
+        skin.drawCylinder(penAttributes, dimensions, position, rotation);
+    }
+
+    set cameraPosition (newPosition) {
+        let camera = this._camera;
+        camera.position.fromArray(newPosition);
+        this._cameraLight.position.copy(camera.position);
+
+        camera.lookAt(new three.Vector3());
+    }
+
+    get cameraPosition () {
+        return this._camera.position.toArray();
     }
 
     /* ******
