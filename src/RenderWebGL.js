@@ -11,7 +11,6 @@ const RenderConstants = require('./RenderConstants');
 const ShaderManager = require('./ShaderManager');
 const SVGSkin = require('./SVGSkin');
 const ThreeDSkin = require('./ThreeDSkin');
-
 /**
  * @callback RenderWebGL#idFilterFunc
  * @param {int} drawableID The ID to filter.
@@ -96,7 +95,7 @@ class RenderWebGL extends EventEmitter {
         /** @type {HTMLCanvasElement} */
         this._tempCanvas = document.createElement('canvas');
 
-        this._objectLoader = new three.JSONLoader();
+        this._objectLoader = new three.ObjectLoader();
 
         this._createGeometry();
 
@@ -106,7 +105,7 @@ class RenderWebGL extends EventEmitter {
         this.setStageSize(xLeft || -240, xRight || 240, yBottom || -180, yTop || 180);
         this.resize(this._nativeSize[0], this._nativeSize[1]);
 
-        this._camera = new three.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000);
+        this._camera = new three.PerspectiveCamera(45, canvas.width / canvas.height, 0.1, 1000);
         this._camera.position.set(
             (this._xLeft + this._xRight) / 2,
             (this._yBottom + this._yTop) / 2,
@@ -249,18 +248,8 @@ class RenderWebGL extends EventEmitter {
         const skinId = this._nextSkinId++;
         const newSkin = new ThreeDSkin(skinId, this);
 
-        if (objectData === undefined) {
-            newSkin.setGeometry(new three.BoxGeometry(10, 10, 10));
-            newSkin.setMaterial(new three.MeshLambertMaterial({color: 0x444444}));
-        } else {
-            let result = this._objectLoader.parse(objectData);
-            newSkin.setGeometry(result.geometry);
-
-            if (result.materials) {
-                newSkin.setMaterial(result.materials);
-            } else {
-                newSkin.setMaterial(new three.MeshLambertMaterial({color: 0x444444}));
-            }
+        if (objectData !== undefined) {
+            newSkin.object = this._objectLoader.parse(objectData);
         }
 
         this._allSkins[skinId] = newSkin;
@@ -314,6 +303,7 @@ class RenderWebGL extends EventEmitter {
         drawable.dispose();
         delete this._allDrawables[drawableID];
 
+        this._scene.remove(drawable);
         let index;
         while ((index = this._drawList.indexOf(drawableID)) >= 0) {
             this._drawList.splice(index, 1);
