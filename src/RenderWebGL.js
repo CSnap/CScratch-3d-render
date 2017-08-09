@@ -8,7 +8,6 @@ const BitmapSkin = require('./BitmapSkin');
 const Drawable = require('./Drawable');
 const ThreeDPenSkin = require('./ThreeDPenSkin');
 const RenderConstants = require('./RenderConstants');
-const ShaderManager = require('./ShaderManager');
 const SVGSkin = require('./SVGSkin');
 const ThreeDSkin = require('./ThreeDSkin');
 /**
@@ -118,7 +117,7 @@ class RenderWebGL extends EventEmitter {
             new three.PointLight()          // Light at the camera position
         ];
 
-        const intensities = [.5, .4, .3];
+        const intensities = [.4, .4, .3];
 
         lights.forEach(function (light, i) {
             light.intensity = intensities[i];
@@ -1014,7 +1013,7 @@ class RenderWebGL extends EventEmitter {
      * @return {Array<Array<number>>} points Convex hull points, as [[x, y], ...]
      */
     _getConvexHullPointsForDrawable (drawableID) {
-        const drawable = this._allDrawables[drawableID];
+        /*const drawable = this._allDrawables[drawableID];
         const [width, height] = drawable.skin.size;
         // No points in the hull if invisible or size is 0.
         if (!drawable.getVisible() || width === 0 || height === 0) {
@@ -1049,14 +1048,14 @@ class RenderWebGL extends EventEmitter {
 
         // Known boundary points on left/right edges of pixels.
         const boundaryPoints = [];
-
+*/
         /**
          * Helper method to look up a pixel.
          * @param {int} x X coordinate of the pixel in `pixels`.
          * @param {int} y Y coordinate of the pixel in `pixels`.
          * @return {int} Known ID at that pixel, or RenderConstants.ID_NONE.
          */
-        const _getPixel = (x, y) => {
+        /*const _getPixel = (x, y) => {
             const pixelBase = Math.round(((width * y) + x) * 4); // Sometimes SVGs don't have int width and height
             return Drawable.color3bToID(
                 pixels[pixelBase],
@@ -1080,7 +1079,7 @@ class RenderWebGL extends EventEmitter {
             }
         }
         // Simplify boundary points using convex hull.
-        return hull(boundaryPoints, Infinity);
+        return hull(boundaryPoints, Infinity);*/
     }
 }
 

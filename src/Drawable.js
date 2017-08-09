@@ -164,11 +164,13 @@ class Drawable {
             this._object.position.fromArray(properties.position);
             dirty = true;
         }
-        if ('rotation' in properties && (
-            this._object.rotation.x !== properties.rotation[0] ||
-            this._object.rotation.y !== properties.rotation[1] ||
-            this._object.rotation.z !== properties.rotation[2])) {
-            this._object.rotation.fromArray(properties.rotation);
+        if ('rotation' in properties) {
+            const newRotation = properties.rotation.map(three.Math.degToRad);
+            if (this._object.rotation.x !== properties.rotation[0] ||
+                this._object.rotation.y !== properties.rotation[1] ||
+                this._object.rotation.z !== properties.rotation[2]) {
+                this._object.rotation.fromArray(newRotation);
+            }
             dirty = true;
         }
         if ('scale' in properties && (

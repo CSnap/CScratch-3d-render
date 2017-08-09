@@ -18,6 +18,10 @@ class ThreeDPenSkin extends Skin {
         this.is3D = true;
     }
 
+    dispose () {
+        this._group = null;
+    }
+
     get object () {
         return this._group;
     }
@@ -39,7 +43,7 @@ class ThreeDPenSkin extends Skin {
     _addObjectFromGeometry (geometry, position, rotation, color) {
         let object = new three.Mesh(geometry, this._getPenMaterial(color));
         object.position.fromArray(position);
-        object.rotation.fromArray(rotation);
+        object.rotation.fromArray(rotation.map(three.Math.degToRad));
 
         this._group.add(object);
     }
@@ -74,12 +78,27 @@ class ThreeDPenSkin extends Skin {
     drawArc (penAttributes, dimensions, position, rotation) {
         const curve = new EllipseCurve3(
             0, 0,
-            dimensions[0] / 2, dimensions[1] / 2,
+            dimensions[0] / 2, dimensions[1],
             0, Math.PI,
             false,
             0
         );
+        this._addObjectFromGeometry(
+            new three.TubeBufferGeometry(curve, null, penAttributes.diameter / 2),
+            position,
+            rotation,
+            penAttributes.color4f
+        );
+    }
 
+    drawTorus (penAttributes, dimensions, position, rotation) {
+        const curve = new EllipseCurve3(
+            0, 0,
+            dimensions[0] / 2, dimensions[1] / 2,
+            0, Math.PI * 2,
+            false,
+            0
+        );
         this._addObjectFromGeometry(
             new three.TubeBufferGeometry(curve, null, penAttributes.diameter / 2),
             position,
